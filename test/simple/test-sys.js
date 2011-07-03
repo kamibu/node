@@ -22,6 +22,11 @@
 var common = require('../common');
 var assert = require('assert');
 
+// Verify our assumptions of what a regular expression is
+assert.equal(false, /abc/ instanceof Function);
+assert.equal(true, /abc/ instanceof Object);
+assert.equal(true, /abc/ instanceof RegExp);
+
 assert.equal('0', common.inspect(0));
 assert.equal('1', common.inspect(1));
 assert.equal('false', common.inspect(false));
