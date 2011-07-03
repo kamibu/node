@@ -261,7 +261,9 @@ def configure(conf):
                        uselib_store="EXECINFO"):
        conf.fatal("Install the libexecinfo port from /usr/ports/devel/libexecinfo.")
 
-  if not Options.options.without_ssl:
+  if o.without_ssl:
+    o.use_openssl = conf.env["USE_OPENSSL"] = False
+  else:
     # Don't override explicitly supplied openssl paths with pkg-config results.
     explicit_openssl = o.openssl_includes or o.openssl_libpath
 
@@ -272,7 +274,7 @@ def configure(conf):
     if not explicit_openssl and conf.check_cfg(package='openssl',
                                                args='--cflags --libs',
                                                uselib_store='OPENSSL'):
-      Options.options.use_openssl = conf.env["USE_OPENSSL"] = True
+      o.use_openssl = conf.env["USE_OPENSSL"] = True
       conf.env.append_value("CPPFLAGS", "-DHAVE_OPENSSL=1")
     else:
       if o.openssl_libpath: 
@@ -317,8 +319,22 @@ def configure(conf):
         conf.fatal("Could not autodetect OpenSSL support. " +
                    "Make sure OpenSSL development packages are installed. " +
                    "Use configure --without-ssl to disable this message.")
-  else:
-    Options.options.use_openssl = conf.env["USE_OPENSSL"] = False
+
+    # use='OPENSSL' doesn't work with our version of waf
+    # and we have to use a fragment because function_name
+    # wont't detect macros :(
+    conf.check_cc(fragment='''
+                  #include <openssl/ssl.h>
+                  int main(void) {
+                    (void) SSL_COMP_get_compression_methods();
+                    return 0;
+                  }
+                  ''',
+                  function_name='SSL_COMP_get_compression_methods',
+                  includes=conf.env['INCLUDES_OPENSSL'],
+                  defines=conf.env['DEFINES_OPENSSL'],
+                  libpath=conf.env['LIBPATH_OPENSSL'],
+                  lib=conf.env['LIB_OPENSSL'])
 
   conf.check(lib='util', libpath=['/usr/lib', '/usr/local/lib'],
              uselib_store='UTIL')

@@ -3638,7 +3638,7 @@ void InitCrypto(Handle<Object> target) {
   ERR_load_crypto_strings();
 
   // Turn off compression. Saves memory - do it in userland.
-#ifdef SSL_COMP_get_compression_methods
+#ifdef HAVE_SSL_COMP_GET_COMPRESSION_METHODS
   // Before OpenSSL 0.9.8 this was not possible.
   STACK_OF(SSL_COMP)* comp_methods = SSL_COMP_get_compression_methods();
   sk_SSL_COMP_zero(comp_methods);
