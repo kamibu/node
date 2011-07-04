@@ -112,40 +112,61 @@ var verified = crypto.createVerify('RSA-SHA256')
                      .verify(certPem, s2); // binary
 assert.ok(verified, 'sign and verify (binary)');
 
-// Test encryption and decryption
-var plaintext = 'Keep this a secret? No! Tell everyone about node.js!';
-var cipher = crypto.createCipher('aes192', 'MySecretKey123');
+[undefined, 0].forEach(function(pad) {
+  // Test encryption and decryption
+  var plaintext = 'Keep this a secret? No! Tell everyone about node.js!';
+  var cipher = crypto.createCipher('aes192', 'MySecretKey123', pad);
 
-// encrypt plaintext which is in utf8 format
-// to a ciphertext which will be in hex
-var ciph = cipher.update(plaintext, 'utf8', 'hex');
-// Only use binary or hex, not base64.
-ciph += cipher.final('hex');
+  // encrypt plaintext which is in utf8 format
+  // to a ciphertext which will be in hex
+  var ciph = cipher.update(plaintext, 'utf8', 'hex');
+  // Only use binary or hex, not base64.
+  ciph += cipher.final('hex');
 
-var decipher = crypto.createDecipher('aes192', 'MySecretKey123');
-var txt = decipher.update(ciph, 'hex', 'utf8');
-txt += decipher.final('utf8');
+  var decipher = crypto.createDecipher('aes192', 'MySecretKey123', pad);
+  var txt = decipher.update(ciph, 'hex', 'utf8');
+  txt += decipher.final('utf8');
 
-assert.equal(txt, plaintext, 'encryption and decryption');
+  if (pad === 0) {
+    // Trim to cipher block size (128 bits for AES).
+    assert.equal(txt,
+                 plaintext.slice(0, plaintext.length >> 4 << 4),
+                 'padded encryption and decryption');
+  }
+  else {
+    assert.equal(txt, plaintext, 'encryption and decryption');
+  }
 
-// Test encyrption and decryption with explicit key and iv
-var encryption_key = '0123456789abcd0123456789';
-var iv = '12345678';
+  // Test encyrption and decryption with explicit key and iv
+  var encryption_key = '0123456789abcd0123456789';
+  var iv = '12345678';
 
-var cipher = crypto.createCipheriv('des-ede3-cbc', encryption_key, iv);
-var ciph = cipher.update(plaintext, 'utf8', 'hex');
-ciph += cipher.final('hex');
+  var cipher = crypto.createCipheriv('des-ede3-cbc', encryption_key, iv, pad);
+  var ciph = cipher.update(plaintext, 'utf8', 'hex');
+  ciph += cipher.final('hex');
 
-var decipher = crypto.createDecipheriv('des-ede3-cbc', encryption_key, iv);
-var txt = decipher.update(ciph, 'hex', 'utf8');
-txt += decipher.final('utf8');
+  var decipher = crypto.createDecipheriv('des-ede3-cbc',
+                                         encryption_key,
+                                         iv,
+                                         pad);
+  var txt = decipher.update(ciph, 'hex', 'utf8');
+  txt += decipher.final('utf8');
 
-assert.equal(txt, plaintext, 'encryption and decryption with key and iv');
+  if (pad === 0) {
+    // Trim to cipher block size (64 bits for DES).
+    assert.equal(txt,
+                 plaintext.slice(0, plaintext.length >> 3 << 3),
+                 'padded encryption and decryption with key and iv');
+  }
+  else {
+    assert.equal(txt, plaintext, 'encryption and decryption with key and iv');
+  }
 
-// update() should only take buffers / strings
-assert.throws(function() {
-  crypto.createHash('sha1').update({foo: 'bar'});
-}, /string or buffer/);
+  // update() should only take buffers / strings
+  assert.throws(function() {
+    crypto.createHash('sha1').update({foo: 'bar'});
+  }, /string or buffer/);
+});
 
 
 // Test Diffie-Hellman with two parties sharing a secret,

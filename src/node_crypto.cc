@@ -1533,7 +1533,10 @@ class Cipher : public ObjectWrap {
   }
 
 
-  bool CipherInit(char* cipherType, char* key_buf, int key_buf_len) {
+  bool CipherInit(char* cipherType,
+                  char* key_buf,
+                  int key_buf_len,
+                  int padding) {
     cipher = EVP_get_cipherbyname(cipherType);
     if(!cipher) {
       fprintf(stderr, "node-crypto : Unknown cipher %s\n", cipherType);
@@ -1550,6 +1553,13 @@ class Cipher : public ObjectWrap {
       EVP_CIPHER_CTX_cleanup(&ctx);
       return false;
     }
+
+    if (padding != -1 && !EVP_CIPHER_CTX_set_padding(&ctx, padding)) {
+      fprintf(stderr, "node-crypto : Bad padding %d\n", padding);
+      EVP_CIPHER_CTX_cleanup(&ctx);
+      return false;
+    }
+
     initialised_ = true;
     return true;
   }
@@ -1559,16 +1569,19 @@ class Cipher : public ObjectWrap {
                     char* key,
                     int key_len,
                     char *iv,
-                    int iv_len) {
+                    int iv_len,
+                    int padding) {
     cipher = EVP_get_cipherbyname(cipherType);
     if(!cipher) {
       fprintf(stderr, "node-crypto : Unknown cipher %s\n", cipherType);
       return false;
     }
+
     if (EVP_CIPHER_iv_length(cipher)!=iv_len) {
       fprintf(stderr, "node-crypto : Invalid IV length %d\n", iv_len);
       return false;
     }
+
     EVP_CIPHER_CTX_init(&ctx);
     EVP_CipherInit(&ctx,cipher,(unsigned char *)key,(unsigned char *)iv, true);
     if (!EVP_CIPHER_CTX_set_key_length(&ctx,key_len)) {
@@ -1576,6 +1589,13 @@ class Cipher : public ObjectWrap {
       EVP_CIPHER_CTX_cleanup(&ctx);
       return false;
     }
+
+    if (padding != -1 && !EVP_CIPHER_CTX_set_padding(&ctx, padding)) {
+      fprintf(stderr, "node-crypto : Bad padding %d\n", padding);
+      EVP_CIPHER_CTX_cleanup(&ctx);
+      return false;
+    }
+
     initialised_ = true;
     return true;
   }
@@ -1622,6 +1642,8 @@ class Cipher : public ObjectWrap {
         "Must give cipher-type, key")));
     }
 
+    const int padding = args[2]->IsUndefined() ? -1 : args[2]->Int32Value();
+
     ASSERT_IS_STRING_OR_BUFFER(args[1]);
     ssize_t key_buf_len = DecodeBytes(args[1], BINARY);
 
@@ -1636,7 +1658,7 @@ class Cipher : public ObjectWrap {
 
     String::Utf8Value cipherType(args[0]->ToString());
 
-    bool r = cipher->CipherInit(*cipherType, key_buf, key_buf_len);
+    bool r = cipher->CipherInit(*cipherType, key_buf, key_buf_len, padding);
 
     delete [] key_buf;
 
@@ -1659,6 +1681,8 @@ class Cipher : public ObjectWrap {
       return ThrowException(Exception::Error(String::New(
         "Must give cipher-type, key, and iv as argument")));
     }
+
+    const int padding = args[3]->IsUndefined() ? -1 : args[3]->Int32Value();
 
     ASSERT_IS_STRING_OR_BUFFER(args[1]);
     ssize_t key_len = DecodeBytes(args[1], BINARY);
@@ -1686,7 +1710,12 @@ class Cipher : public ObjectWrap {
 
     String::Utf8Value cipherType(args[0]->ToString());
 
-    bool r = cipher->CipherInitIv(*cipherType, key_buf,key_len,iv_buf,iv_len);
+    bool r = cipher->CipherInitIv(*cipherType,
+                                  key_buf,
+                                  key_len,
+                                  iv_buf,
+                                  iv_len,
+                                  padding);
 
     delete [] key_buf;
     delete [] iv_buf;
@@ -1880,7 +1909,10 @@ class Decipher : public ObjectWrap {
     target->Set(String::NewSymbol("Decipher"), t->GetFunction());
   }
 
-  bool DecipherInit(char* cipherType, char* key_buf, int key_buf_len) {
+  bool DecipherInit(char* cipherType,
+                    char* key_buf,
+                    int key_buf_len,
+                    int padding = -1) {
     cipher_ = EVP_get_cipherbyname(cipherType);
 
     if(!cipher_) {
@@ -1904,11 +1936,19 @@ class Decipher : public ObjectWrap {
                    (unsigned char*)(key),
                    (unsigned char *)(iv),
                    false);
+
     if (!EVP_CIPHER_CTX_set_key_length(&ctx,key_len)) {
       fprintf(stderr, "node-crypto : Invalid key length %d\n", key_len);
       EVP_CIPHER_CTX_cleanup(&ctx);
       return false;
     }
+
+    if (padding != -1 && !EVP_CIPHER_CTX_set_padding(&ctx, padding)) {
+      fprintf(stderr, "node-crypto : Bad padding %d\n", padding);
+      EVP_CIPHER_CTX_cleanup(&ctx);
+      return false;
+    }
+
     initialised_ = true;
     return true;
   }
@@ -1918,27 +1958,38 @@ class Decipher : public ObjectWrap {
                       char* key,
                       int key_len,
                       char *iv,
-                      int iv_len) {
+                      int iv_len,
+                      int padding) {
     cipher_ = EVP_get_cipherbyname(cipherType);
     if(!cipher_) {
       fprintf(stderr, "node-crypto : Unknown cipher %s\n", cipherType);
       return false;
     }
+
     if (EVP_CIPHER_iv_length(cipher_) != iv_len) {
       fprintf(stderr, "node-crypto : Invalid IV length %d\n", iv_len);
       return false;
     }
+
     EVP_CIPHER_CTX_init(&ctx);
     EVP_CipherInit(&ctx,
                    cipher_,
                    (unsigned char*)(key),
                    (unsigned char *)(iv),
                    false);
+
     if (!EVP_CIPHER_CTX_set_key_length(&ctx,key_len)) {
       fprintf(stderr, "node-crypto : Invalid key length %d\n", key_len);
       EVP_CIPHER_CTX_cleanup(&ctx);
       return false;
     }
+
+    if (padding != -1 && !EVP_CIPHER_CTX_set_padding(&ctx, padding)) {
+      fprintf(stderr, "node-crypto : Bad padding %d\n", padding);
+      EVP_CIPHER_CTX_cleanup(&ctx);
+      return false;
+    }
+
     initialised_ = true;
     return true;
   }
@@ -1990,6 +2041,8 @@ class Decipher : public ObjectWrap {
         "Must give cipher-type, key as argument")));
     }
 
+    const int padding = args[2]->IsUndefined() ? -1 : args[2]->Int32Value();
+
     ASSERT_IS_STRING_OR_BUFFER(args[1]);
     ssize_t key_len = DecodeBytes(args[1], BINARY);
 
@@ -2004,7 +2057,7 @@ class Decipher : public ObjectWrap {
 
     String::Utf8Value cipherType(args[0]->ToString());
 
-    bool r = cipher->DecipherInit(*cipherType, key_buf,key_len);
+    bool r = cipher->DecipherInit(*cipherType, key_buf, key_len, padding);
 
     delete [] key_buf;
 
@@ -2027,6 +2080,8 @@ class Decipher : public ObjectWrap {
       return ThrowException(Exception::Error(String::New(
         "Must give cipher-type, key, and iv as argument")));
     }
+
+    const int padding = args[3]->IsUndefined() ? -1 : args[3]->Int32Value();
 
     ASSERT_IS_STRING_OR_BUFFER(args[1]);
     ssize_t key_len = DecodeBytes(args[1], BINARY);
@@ -2054,7 +2109,12 @@ class Decipher : public ObjectWrap {
 
     String::Utf8Value cipherType(args[0]->ToString());
 
-    bool r = cipher->DecipherInitIv(*cipherType, key_buf,key_len,iv_buf,iv_len);
+    bool r = cipher->DecipherInitIv(*cipherType,
+                                    key_buf,
+                                    key_len,
+                                    iv_buf,
+                                    iv_len,
+                                    padding);
 
     delete [] key_buf;
     delete [] iv_buf;
