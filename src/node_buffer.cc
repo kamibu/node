@@ -475,9 +475,12 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
             "Offset is out of bounds")));
   }
 
-  size_t max_length = args[2]->IsUndefined() ? buffer->length_ - offset
-                                             : args[2]->Uint32Value();
-  max_length = MIN(buffer->length_ - offset, max_length);
+  const size_t utf8len = s->Utf8Length();
+  const size_t len =
+    args[2]->IsUint32()
+      ? MIN(utf8len, args[2]->Uint32Value())
+      : utf8len;
+  const size_t max_length = MIN(len, buffer->length_ - offset);
 
   char* p = buffer->data_ + offset;
 
@@ -490,8 +493,6 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
 
   constructor_template->GetFunction()->Set(chars_written_sym,
                                            Integer::New(char_written));
-
-  if (written > 0 && p[written-1] == '\0') written--;
 
   return scope.Close(Integer::New(written));
 }
