@@ -394,10 +394,10 @@ Options:
 - `path`: Request path. Should include query string and fragments if any.
    E.G. `'/index.html?page=12'`
 - `headers`: An object containing request headers.
-- `agent`: Controls `Agent` behavior. Possible values:
+- `agent`: Controls `Agent` behavior. When an Agent is used request will default to Connection:keep-alive. Possible values:
  - `undefined` (default): use default `Agent` for this host and port.
  - `Agent` object: explicitly use the passed in `Agent`.
- - `false`: explicitly generate a new `Agent` for this host and port. `Agent` will not be re-used.
+ - `false`: opts out of connection pooling with an Agent, defaults request to Connection:close.
 
 `http.request()` returns an instance of the `http.ClientRequest`
 class. The `ClientRequest` instance is a writable stream. If one needs to
