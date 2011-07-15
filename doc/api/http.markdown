@@ -544,6 +544,12 @@ Options:
 - `port`: Port of remote server.
 - `socketPath`: Unix Domain Socket (use one of host:port or socketPath)
 
+### Event: 'socket'
+
+`function (socket) { }`
+
+Emitted after a socket is assigned to this request.
+
 ### Event: 'upgrade'
 
 `function (response, socket, head) { }`
