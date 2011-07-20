@@ -34,7 +34,13 @@ static Persistent<Function> constructor;
 
 
 // TODO share with TCPWrap?
-typedef class ReqWrap<uv_connect_t> ConnectWrap;
+struct ConnectWrap: public ReqWrap<uv_connect_t> {
+  ConnectWrap(Function* connect_cb) {
+    connect_cb_ = Persistent<Function>::New(Local<Function>(connect_cb));
+  }
+
+  Persistent<Function> connect_cb_;
+};
 
 
 class PipeWrap : StreamWrap {
@@ -85,6 +91,7 @@ class PipeWrap : StreamWrap {
     int r = uv_pipe_init(&handle_);
     assert(r == 0); // How do we proxy this error up to javascript?
                     // Suggestion: uv_pipe_init() returns void.
+    handle_.data = this;
     UpdateWriteQueueSize();
   }
 
@@ -161,6 +168,7 @@ class PipeWrap : StreamWrap {
     HandleScope scope;
 
     // The wrap and request objects should still be there.
+    assert(req_wrap->connect_cb_.IsEmpty() == false);
     assert(req_wrap->object_.IsEmpty() == false);
     assert(wrap->object_.IsEmpty() == false);
 
@@ -174,8 +182,16 @@ class PipeWrap : StreamWrap {
       Local<Value>::New(req_wrap->object_)
     };
 
-    MakeCallback(req_wrap->object_, "oncomplete", 3, argv);
+    TryCatch tc;
 
+    req_wrap->connect_cb_->Call(req_wrap->object_, 3, argv);
+
+    if (tc.HasCaught()) {
+      FatalException(tc);
+    }
+
+    req_wrap->connect_cb_.Dispose();
+    req_wrap->connect_cb_.Clear();
     delete req_wrap;
   }
 
@@ -185,8 +201,10 @@ class PipeWrap : StreamWrap {
     UNWRAP
 
     String::AsciiValue name(args[0]->ToString());
+    Function* connect_cb = Function::Cast(*args[1]);
+    ConnectWrap* req_wrap = new ConnectWrap(connect_cb);
 
-    ConnectWrap* req_wrap = new ConnectWrap();
+    req_wrap->req_.data = (void*)req_wrap;
 
     int r = uv_pipe_connect(&req_wrap->req_,
                             &wrap->handle_,
