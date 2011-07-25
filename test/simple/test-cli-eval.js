@@ -31,25 +31,41 @@ if (module.parent) {
 }
 
 // assert that the result of the final expression is written to stdout
-child.exec(nodejs + ' --eval "1337; 42"',
+child.exec(nodejs + ' --print --eval "1337; 42"',
     function(err, stdout, stderr) {
       assert.equal(parseInt(stdout), 42);
     });
 
 // assert that module loading works
-child.exec(nodejs + ' --eval "require(\'' + __filename + '\')"',
+child.exec(nodejs + ' --print --eval "require(\'' + __filename + '\')"',
     function(status, stdout, stderr) {
       assert.equal(status.code, 42);
     });
 
 // module path resolve bug, regression test
-child.exec(nodejs + ' --eval "require(\'./test/simple/test-cli-eval.js\')"',
+child.exec(nodejs + ' --print --eval "require(\'./test/simple/test-cli-eval.js\')"',
     function(status, stdout, stderr) {
       assert.equal(status.code, 42);
     });
 
 // empty program should do nothing
-child.exec(nodejs + ' -e ""', function(status, stdout, stderr) {
+child.exec(nodejs + ' -p -e ""', function(status, stdout, stderr) {
   assert.equal(stdout, 'undefined\n');
   assert.equal(stderr, '');
+});
+
+// this shouldn't print anything...
+'-e|--eval'.split('|').forEach(function(args) {
+  child.exec(nodejs + ' ' + args + ' 42', function(status, stdout, stderr) {
+    assert.equal(stdout, '');
+    assert.equal(stderr, '');
+  });
+});
+
+// ...while this should
+'-pe|-p -e|--print --eval'.split('|').forEach(function(args) {
+  child.exec(nodejs + ' ' + args + ' 42', function(status, stdout, stderr) {
+    assert.equal(stdout, '42\n');
+    assert.equal(stderr, '');
+  });
 });
