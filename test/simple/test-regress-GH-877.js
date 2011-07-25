@@ -6,8 +6,6 @@ var N = 20;
 var responses = 0;
 var maxQueued = 0;
 
-debugger;
-
 var agent = http.globalAgent;
 agent.maxSockets = 10;
 
