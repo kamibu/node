@@ -369,3 +369,21 @@ assert.equal(rsaSignature, '5c50e3145c4e2497aadb0eabc83b342d0b0021ece0d4c4a064b7
 
 rsaVerify.update(rsaPubPem);
 assert.equal(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), 1);
+
+// Test random and pseudo-random byte sequence generator
+[
+  0,
+  0.0,
+  -1,
+  -1.0,
+  undefined,
+  null,
+  false,
+  true,
+  '',
+  {},
+  []
+].forEach(function(value) {
+  assert.throws(function() { crypto.randomBytes(value); }, TypeError);
+  assert.throws(function() { crypto.pseudoRandomBytes(value); }, TypeError);
+});

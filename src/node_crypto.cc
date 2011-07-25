@@ -3638,6 +3638,132 @@ class DiffieHellman : public ObjectWrap {
 };
 
 
+typedef int (*random_fun_t)(unsigned char*, int);
+
+template <random_fun_t RAND>
+class RandomBytes {
+public:
+  static Handle<Value> Call(const Arguments& args) {
+    HandleScope scope;
+
+    const int size = args[0]->Int32Value();
+    assert(size > 0);
+
+    if (args[1]->IsFunction()) {
+      RandomBytes* self = new RandomBytes(size, args[1]);
+      eio_custom(RandomBytes::Execute,
+                 EIO_PRI_DEFAULT,
+                 RandomBytes::Finish,
+                 reinterpret_cast<void*>(self));
+      return Undefined();
+    }
+    else {
+      char* bytes = new char[size];
+
+      const int status = RAND_bytes(reinterpret_cast<unsigned char*>(bytes),
+                                    size);
+      if (status == 1)
+        return CreateBuffer(bytes, size);
+
+      delete bytes;
+      return ThrowException(ExceptionForStatus(status));
+    }
+  }
+
+private:
+  RandomBytes(int size, Handle<Value> callback) {
+    assert(size >= 0);
+    assert(!callback.IsEmpty());
+    assert(callback->IsFunction());
+    callback_ = Persistent<Function>::New(callback.As<Function>());
+    status_ = -1;
+    bytes_ = new char[size];
+    size_ = size;
+  }
+
+  ~RandomBytes() {
+    callback_.Dispose();
+    callback_.Clear();
+  }
+
+  static int Execute(eio_req* req) {
+    reinterpret_cast<RandomBytes*>(req->data)->DoExecute();
+    return 0;
+  }
+
+  static int Finish(eio_req* req) {
+    reinterpret_cast<RandomBytes*>(req->data)->DoFinish();
+    return 0;
+  }
+
+  void DoExecute() {
+    // don't call ERR_get_error() if status != 1, not thread-safe
+    status_ = RAND_bytes(reinterpret_cast<unsigned char*>(bytes_), size_);
+    if (status_ != 1) {
+      delete bytes_;
+      bytes_ = NULL;
+      size_ = 0;
+    }
+  }
+
+  void DoFinish() {
+    HandleScope scope;
+
+    Handle<Value> argv[2] = { Undefined(), Undefined() };
+    if (status_ == 1) {
+      argv[1] = CreateBuffer(bytes_, size_);
+    }
+    else {
+      argv[0] = ExceptionForStatus(status_);
+    }
+
+    TryCatch tc;
+    callback_->Call(Context::GetCurrent()->Global(), 2, argv);
+
+    if (tc.HasCaught()) {
+      FatalException(tc);
+    }
+
+    delete this;
+  }
+
+  // int <-> void* cast helper, gcc optimizes the memset away
+  union Cast {
+    Cast(void* arg) { memset(this, 0, sizeof *this); arg_ = arg; }
+    Cast(int size) { memset(this, 0, sizeof *this); size_ = size; }
+    void* arg_;
+    int size_;
+  };
+
+  static void Release(char* bytes, void* arg) {
+    const int size = Cast(arg).size_;
+    V8::AdjustAmountOfExternalAllocatedMemory(-(size + sizeof(Buffer)));
+    delete bytes;
+  }
+
+  static Handle<Value> CreateBuffer(char* bytes, int size) {
+    void* arg = Cast(size).arg_;
+    V8::AdjustAmountOfExternalAllocatedMemory(size + sizeof(Buffer));
+    return Buffer::New(bytes, size, Release, arg)->handle_;
+  }
+
+  static Handle<Value> ExceptionForStatus(int status) {
+    assert(status == 0 || status == -1);
+    if (status == 0)
+      return Exception::Error(String::New("No random bytes collected."));
+    else if (status == -1)
+      return Exception::Error(String::New("Not supported."));
+    else
+      return Exception::Error(String::New("No error?"));
+  }
+
+  Persistent<Function> callback_;
+  char* bytes_;
+  int status_;
+  int size_;
+};
+
+
 void InitCrypto(Handle<Object> target) {
   HandleScope scope;
 
@@ -3669,6 +3795,14 @@ void InitCrypto(Handle<Object> target) {
   Hash::Initialize(target);
   Sign::Initialize(target);
   Verify::Initialize(target);
+
+  target->Set(String::NewSymbol("randomBytes"),
+              FunctionTemplate::New(
+                  RandomBytes<RAND_bytes>::Call)->GetFunction());
+
+  target->Set(String::NewSymbol("pseudoRandomBytes"),
+              FunctionTemplate::New(
+                  RandomBytes<RAND_pseudo_bytes>::Call)->GetFunction());
 
   subject_symbol    = NODE_PSYMBOL("subject");
   issuer_symbol     = NODE_PSYMBOL("issuer");

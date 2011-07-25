@@ -33,6 +33,7 @@
 #include <openssl/pem.h>
 #include <openssl/x509.h>
 #include <openssl/hmac.h>
+#include <openssl/rand.h>
 
 #ifdef OPENSSL_NPN_NEGOTIATED
 #include <node_buffer.h>
