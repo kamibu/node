@@ -868,6 +868,7 @@ def build(bld):
     src/pipe_wrap.cc
     src/cares_wrap.cc
     src/stdio_wrap.cc
+    src/v8_typed_array.cc
   """
 
   if sys.platform.startswith("win32"):

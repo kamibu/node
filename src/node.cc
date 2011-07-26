@@ -80,6 +80,7 @@ extern "C" {
 # include <node_crypto.h>
 #endif
 #include <node_script.h>
+#include <v8_typed_array.h>
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 
@@ -2521,6 +2522,7 @@ int Start(int argc, char *argv[]) {
   v8::Context::Scope context_scope(context);
 
   Handle<Object> process = SetupProcessObject(argc, argv);
+  v8_typed_array::AttachBindings(context->Global());
 
   // Create all the objects, load modules, do everything.
   // so your next reading stop should be node::Load()!
