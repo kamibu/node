@@ -63,6 +63,13 @@ static Persistent<String> ext_key_usage_symbol;
 
 static Persistent<FunctionTemplate> secure_context_constructor;
 
+
+Handle<Value> NotInitializedException() {
+  HandleScope scope;
+  return ThrowException(Exception::Error(String::New("Not initialized")));
+}
+
+
 void SecureContext::Initialize(Handle<Object> target) {
   HandleScope scope;
 
@@ -1801,9 +1808,12 @@ class Cipher : public ObjectWrap {
   }
 
   static Handle<Value> CipherUpdate(const Arguments& args) {
-    Cipher *cipher = ObjectWrap::Unwrap<Cipher>(args.This());
-
     HandleScope scope;
+
+    Cipher *cipher = ObjectWrap::Unwrap<Cipher>(args.This());
+    if (!cipher->initialised_) {
+      return NotInitializedException();
+    }
 
     ASSERT_IS_STRING_OR_BUFFER(args[0]);
 
@@ -2185,6 +2195,9 @@ class Decipher : public ObjectWrap {
     HandleScope scope;
 
     Decipher *cipher = ObjectWrap::Unwrap<Decipher>(args.This());
+    if (!cipher->initialised_) {
+      return NotInitializedException();
+    }
 
     ASSERT_IS_STRING_OR_BUFFER(args[0]);
 
@@ -2529,9 +2542,12 @@ class Hmac : public ObjectWrap {
   }
 
   static Handle<Value> HmacUpdate(const Arguments& args) {
-    Hmac *hmac = ObjectWrap::Unwrap<Hmac>(args.This());
-
     HandleScope scope;
+
+    Hmac *hmac = ObjectWrap::Unwrap<Hmac>(args.This());
+    if (!hmac->initialised_) {
+      return NotInitializedException();
+    }
 
     ASSERT_IS_STRING_OR_BUFFER(args[0]);
     enum encoding enc = ParseEncoding(args[1]);
@@ -2684,6 +2700,9 @@ class Hash : public ObjectWrap {
     HandleScope scope;
 
     Hash *hash = ObjectWrap::Unwrap<Hash>(args.This());
+    if (!hash->initialised_) {
+      return NotInitializedException();
+    }
 
     ASSERT_IS_STRING_OR_BUFFER(args[0]);
     enum encoding enc = ParseEncoding(args[1]);
@@ -2721,9 +2740,8 @@ class Hash : public ObjectWrap {
     HandleScope scope;
 
     Hash *hash = ObjectWrap::Unwrap<Hash>(args.This());
-
     if (!hash->initialised_) {
-      return ThrowException(Exception::Error(String::New("Not initialized")));
+      return NotInitializedException();
     }
 
     unsigned char md_value[EVP_MAX_MD_SIZE];
@@ -2877,9 +2895,12 @@ class Sign : public ObjectWrap {
   }
 
   static Handle<Value> SignUpdate(const Arguments& args) {
-    Sign *sign = ObjectWrap::Unwrap<Sign>(args.This());
-
     HandleScope scope;
+
+    Sign *sign = ObjectWrap::Unwrap<Sign>(args.This());
+    if (!sign->initialised_) {
+      return NotInitializedException();
+    }
 
     ASSERT_IS_STRING_OR_BUFFER(args[0]);
     enum encoding enc = ParseEncoding(args[1]);
@@ -3332,14 +3353,13 @@ class DiffieHellman : public ObjectWrap {
   }
 
   static Handle<Value> GenerateKeys(const Arguments& args) {
+    HandleScope scope;
+
     DiffieHellman* diffieHellman =
       ObjectWrap::Unwrap<DiffieHellman>(args.This());
 
-    HandleScope scope;
-
     if (!diffieHellman->initialised_) {
-      return ThrowException(Exception::Error(
-            String::New("Not initialized")));
+      return NotInitializedException();
     }
 
     if (!DH_generate_key(diffieHellman->dh)) {
@@ -3365,13 +3385,13 @@ class DiffieHellman : public ObjectWrap {
   }
 
   static Handle<Value> GetPrime(const Arguments& args) {
+    HandleScope scope;
+
     DiffieHellman* diffieHellman =
       ObjectWrap::Unwrap<DiffieHellman>(args.This());
 
-    HandleScope scope;
-
     if (!diffieHellman->initialised_) {
-      return ThrowException(Exception::Error(String::New("Not initialized")));
+      return NotInitializedException();
     }
 
     int dataSize = BN_num_bytes(diffieHellman->dh->p);
@@ -3392,13 +3412,13 @@ class DiffieHellman : public ObjectWrap {
   }
 
   static Handle<Value> GetGenerator(const Arguments& args) {
+    HandleScope scope;
+
     DiffieHellman* diffieHellman =
       ObjectWrap::Unwrap<DiffieHellman>(args.This());
 
-    HandleScope scope;
-
     if (!diffieHellman->initialised_) {
-      return ThrowException(Exception::Error(String::New("Not initialized")));
+      return NotInitializedException();
     }
 
     int dataSize = BN_num_bytes(diffieHellman->dh->g);
@@ -3419,13 +3439,13 @@ class DiffieHellman : public ObjectWrap {
   }
 
   static Handle<Value> GetPublicKey(const Arguments& args) {
+    HandleScope scope;
+
     DiffieHellman* diffieHellman =
       ObjectWrap::Unwrap<DiffieHellman>(args.This());
 
-    HandleScope scope;
-
     if (!diffieHellman->initialised_) {
-      return ThrowException(Exception::Error(String::New("Not initialized")));
+      return NotInitializedException();
     }
 
     if (diffieHellman->dh->pub_key == NULL) {
@@ -3452,13 +3472,13 @@ class DiffieHellman : public ObjectWrap {
   }
 
   static Handle<Value> GetPrivateKey(const Arguments& args) {
+    HandleScope scope;
+
     DiffieHellman* diffieHellman =
       ObjectWrap::Unwrap<DiffieHellman>(args.This());
 
-    HandleScope scope;
-
     if (!diffieHellman->initialised_) {
-      return ThrowException(Exception::Error(String::New("Not initialized")));
+      return NotInitializedException();
     }
 
     if (diffieHellman->dh->priv_key == NULL) {
@@ -3491,7 +3511,7 @@ class DiffieHellman : public ObjectWrap {
       ObjectWrap::Unwrap<DiffieHellman>(args.This());
 
     if (!diffieHellman->initialised_) {
-      return ThrowException(Exception::Error(String::New("Not initialized")));
+      return NotInitializedException();
     }
 
     BIGNUM* key = 0;
@@ -3573,7 +3593,7 @@ class DiffieHellman : public ObjectWrap {
       ObjectWrap::Unwrap<DiffieHellman>(args.This());
 
     if (!diffieHellman->initialised_) {
-      return ThrowException(Exception::Error(String::New("Not initialized")));
+      return NotInitializedException();
     }
 
     if (args.Length() == 0) {
@@ -3618,8 +3638,7 @@ class DiffieHellman : public ObjectWrap {
       ObjectWrap::Unwrap<DiffieHellman>(args.This());
 
     if (!diffieHellman->initialised_) {
-      return ThrowException(Exception::Error(
-            String::New("Not initialized")));
+      return NotInitializedException();
     }
 
     if (args.Length() == 0) {

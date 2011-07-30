@@ -388,3 +388,31 @@ assert.equal(rsaSignature, '5c50e3145c4e2497aadb0eabc83b342d0b0021ece0d4c4a064b7
 
 rsaVerify.update(rsaPubPem);
 assert.equal(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), 1);
+
+function expectNotInitialized(e) {
+  return e && e.message === 'Not initialized';
+}
+
+assert.throws(function() {
+  var o = crypto.createHash('sha1');
+  o.digest();
+  o.digest();
+}, expectNotInitialized);
+
+assert.throws(function() {
+  var o = crypto.createHash('sha1');
+  o.digest();
+  o.update('');
+}, expectNotInitialized);
+
+assert.throws(function() {
+  var o = crypto.createCipher('des-cbc', '12345678');
+  o.final();
+  o.update('');
+}, expectNotInitialized);
+
+assert.throws(function() {
+  var o = crypto.createDecipher('des-cbc', '12345678');
+  o.final();
+  o.update('');
+}, expectNotInitialized);
